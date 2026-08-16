@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="A transparent, browser-based VPN connection check.">
+  <title>VPN Checker</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="hero">
+    <div class="eyebrow"><span class="pulse"></span> CONNECTION DIAGNOSTICS</div>
+    <h1>VPN <span>Checker</span></h1>
+    <p>See what your browser reveals — without pretending a browser can prove more than it can.</p>
+  </header>
+
+  <main>
+    <section class="status-panel panel" aria-live="polite">
+      <div>
+        <div class="label">OVERALL STATUS</div>
+        <div class="status-line"><span id="statusDot" class="status-dot loading"></span><strong id="overallStatus">CHECKING…</strong></div>
+        <p id="statusReason">Running public IP and exposure checks.</p>
+      </div>
+      <div class="actions">
+        <label for="testName">TEST NAME <span>(OPTIONAL)</span></label>
+        <input id="testName" maxlength="50" placeholder="e.g. Surfshark Ireland" autocomplete="off">
+        <button id="refreshButton" type="button">↻ &nbsp; REFRESH VPN CHECK</button>
+      </div>
+    </section>
+
+    <div id="errorBanner" class="error-banner" role="alert" hidden></div>
+
+    <section class="grid primary-grid">
+      <article class="panel ip-card">
+        <div class="card-heading"><h2>Public IP</h2><span id="ipBadge" class="badge neutral">CHECKING</span></div>
+        <div class="label">IPv4 ADDRESS</div><div id="ipv4" class="big-value skeleton">Detecting…</div>
+        <div class="label top-gap">IPv6 ADDRESS</div><div id="ipv6" class="value muted">Checking availability…</div>
+      </article>
+
+      <article class="panel">
+        <div class="card-heading"><h2>IP location</h2><span class="icon">◎</span></div>
+        <dl class="details">
+          <div><dt>Country</dt><dd id="country">—</dd></div><div><dt>City</dt><dd id="city">—</dd></div>
+          <div><dt>Region</dt><dd id="region">—</dd></div><div><dt>ISP</dt><dd id="isp">—</dd></div>
+          <div><dt>ASN</dt><dd id="asn">—</dd></div>
+        </dl>
+        <p class="fine-print">IP geolocation is approximate and may identify an ISP gateway, not you.</p>
+      </article>
+    </section>
+
+    <section class="grid tests-grid">
+      <article class="panel test-card">
+        <div class="card-heading"><h2>Browser location</h2><span id="geoBadge" class="badge neutral">NOT REQUESTED</span></div>
+        <p id="browserLocation" class="result-text">Only checked after you explicitly allow access.</p>
+        <button id="locationButton" class="secondary" type="button">ALLOW LOCATION &amp; COMPARE</button>
+        <p id="locationComparison" class="fine-print">We do not send your browser coordinates to another service.</p>
+      </article>
+
+      <article class="panel test-card">
+        <div class="card-heading"><h2>WebRTC exposure</h2><span id="webrtcBadge" class="badge neutral">CHECKING</span></div>
+        <div id="webrtcIps" class="result-text">Inspecting ICE candidates…</div>
+        <p class="fine-print">Browsers may hide local IPs with mDNS. This check cannot guarantee that every WebRTC route is visible.</p>
+      </article>
+
+      <article class="panel test-card">
+        <div class="card-heading"><h2>IPv6 leak risk</h2><span id="ipv6Badge" class="badge neutral">CHECKING</span></div>
+        <p id="ipv6Risk" class="result-text">Comparing available public addresses.</p>
+        <p class="fine-print">A browser cannot know your intended VPN tunnel policy; a visible IPv6 alone is not proof of a leak.</p>
+      </article>
+
+      <article class="panel test-card">
+        <div class="card-heading"><h2>VPN / Proxy / Hosting</h2><span class="badge unknown">CANNOT VERIFY</span></div>
+        <p class="result-text">No dependable, free, keyless signal is used for this claim.</p>
+        <p class="fine-print">IP reputation databases can be incomplete or stale. Your ISP/ASN is shown above so you can interpret it yourself.</p>
+      </article>
+
+      <article class="panel test-card dns-card">
+        <div class="card-heading"><h2>DNS leak</h2><span class="badge unknown">CANNOT VERIFY</span></div>
+        <p class="result-text">A static browser-only page cannot reliably observe which resolver handled your DNS queries.</p>
+        <p class="fine-print">A trustworthy test needs controlled unique DNS hostnames and an authoritative DNS server that records resolver requests. This MVP has no such backend.</p>
+      </article>
+    </section>
+
+    <section class="panel history-panel">
+      <div class="card-heading"><div><div class="label">LOCAL ONLY</div><h2>Recent checks</h2></div><button id="clearHistory" class="text-button" type="button">CLEAR HISTORY</button></div>
+      <p class="fine-print">The latest 10 completed checks are stored in this browser's localStorage.</p>
+      <div id="history" class="history-list"><p class="empty">No saved checks yet.</p></div>
+    </section>
+  </main>
+
+  <footer>VPN Checker MVP · Results are diagnostic signals, not a guarantee of anonymity or security.</footer>
+  <script src="app.js" defer></script>
+</body>
+</html>
