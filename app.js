@@ -34,21 +34,53 @@ async function getIPv6() {
   } catch { return null; }
 }
 
-function candidateIPs(text) {
-  const matches = text.match(/(?:\d{1,3}\.){3}\d{1,3}|(?:[a-f\d]{0,4}:){2,7}[a-f\d]{0,4}/gi) || [];
-  return [...new Set(matches.filter((ip) => ip && ip !== "0.0.0.0"))];
+function isNumericIp(value) {
+  if (!value) return false;
+  const ip = value.replace(/^\[|\]$/g, "");
+  if (/^(?:\d{1,3}\.){3}\d{1,3}$/.test(ip)) {
+    return ip.split(".").every((part) => Number(part) >= 0 && Number(part) <= 255);
+  }
+  return ip.includes(":") && /^[0-9a-f:]+$/i.test(ip) && (ip.match(/:/g) || []).length >= 2;
+}
+
+function candidateAddress(line) {
+  if (!line) return null;
+  const parts = String(line).trim().split(/\s+/);
+  const candidateIndex = parts.findIndex((part) => /^(?:a=)?candidate:/i.test(part));
+  if (candidateIndex === -1) return null;
+  const address = parts[candidateIndex + 4]?.replace(/^\[|\]$/g, "") || null;
+  return isNumericIp(address) && address !== "0.0.0.0" ? address : null;
 }
 
 async function getWebRTCIPs() {
   if (!window.RTCPeerConnection) return { ips: [], unsupported: true };
   const pc = new RTCPeerConnection({ iceServers: [] });
   const found = new Set();
+  const addCandidate = (candidate) => {
+    const address = candidate?.address && isNumericIp(candidate.address)
+      ? candidate.address.replace(/^\[|\]$/g, "")
+      : candidateAddress(candidate?.candidate);
+    if (address && address !== "0.0.0.0") found.add(address);
+  };
+
   pc.createDataChannel("check");
-  pc.onicecandidate = (event) => event.candidate && candidateIPs(event.candidate.candidate).forEach((ip) => found.add(ip));
+  pc.onicecandidate = (event) => event.candidate && addCandidate(event.candidate);
   try {
     await pc.setLocalDescription(await pc.createOffer());
-    await new Promise((resolve) => { const end = setTimeout(resolve, 2500); pc.onicegatheringstatechange = () => { if (pc.iceGatheringState === "complete") { clearTimeout(end); resolve(); } }; });
-    candidateIPs(pc.localDescription?.sdp || "").forEach((ip) => found.add(ip));
+    await new Promise((resolve) => {
+      const end = setTimeout(resolve, 2500);
+      pc.onicegatheringstatechange = () => {
+        if (pc.iceGatheringState === "complete") { clearTimeout(end); resolve(); }
+      };
+    });
+
+    const sdp = pc.localDescription?.sdp || "";
+    sdp.split(/\r?\n/)
+      .filter((line) => /^a=candidate:/i.test(line))
+      .forEach((line) => {
+        const address = candidateAddress(line);
+        if (address) found.add(address);
+      });
   } finally { pc.close(); }
   return { ips: [...found], unsupported: false };
 }
