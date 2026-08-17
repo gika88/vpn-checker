@@ -59,11 +59,22 @@ function isPublic(ip) {
   return !(p[0] === 10 || p[0] === 127 || p[0] === 0 || (p[0] === 192 && p[1] === 168) || (p[0] === 172 && p[1] >= 16 && p[1] <= 31) || (p[0] === 169 && p[1] === 254));
 }
 
-function calculateStatus(data) {
+function getRtcAssessment(data) {
   const publicRtc = data.webrtc.ips.filter(isPublic);
-  const unexpectedRtc = publicRtc.filter((ip) => ip !== data.ipv4 && ip !== data.ipv6);
-  if (unexpectedRtc.length) return { status: "POSSIBLE LEAK", reason: "WebRTC exposed a public address different from the observed public IP.", css: "leak" };
+  const differentPublicRtc = publicRtc.filter((ip) => ip !== data.ipv4 && ip !== data.ipv6);
+  return { publicRtc, differentPublicRtc };
+}
+
+function calculateStatus(data) {
   if (!data.ipv4) return { status: "WARNING", reason: "The public IPv4 check could not be completed.", css: "warning" };
+  const { differentPublicRtc } = getRtcAssessment(data);
+  if (differentPublicRtc.length) {
+    return {
+      status: "REVIEW",
+      reason: "WebRTC exposed an additional public-looking address. A browser-only host-candidate check cannot prove that it bypasses the VPN, so this is flagged for review rather than reported as a leak.",
+      css: "warning"
+    };
+  }
   return { status: "OK", reason: "No conflicting public address was observed. This is not a guarantee of VPN security.", css: "ok" };
 }
 
@@ -75,12 +86,27 @@ function render(data) {
   $("country").textContent = [g.flag?.emoji, g.country].filter(Boolean).join(" ") || "Unavailable";
   $("city").textContent = safe(g.city); $("region").textContent = safe(g.region);
   $("isp").textContent = safe(g.connection?.isp); $("asn").textContent = g.connection?.asn ? `AS${g.connection.asn}` : "Unavailable";
-  const publicRtc = data.webrtc.ips.filter(isPublic);
-  if (data.webrtc.unsupported) { $("webrtcIps").textContent = "WebRTC is not supported by this browser."; setBadge("webrtcBadge", "CANNOT VERIFY", "unknown"); }
-  else if (!data.webrtc.ips.length) { $("webrtcIps").textContent = "No numeric ICE candidate IPs visible (they may be hidden by mDNS)."; setBadge("webrtcBadge", "NONE VISIBLE", "neutral"); }
-  else { $("webrtcIps").textContent = data.webrtc.ips.join(" · "); setBadge("webrtcBadge", publicRtc.some((ip) => ip !== data.ipv4 && ip !== data.ipv6) ? "REVIEW" : "OBSERVED", publicRtc.some((ip) => ip !== data.ipv4 && ip !== data.ipv6) ? "danger" : ""); }
-  if (data.ipv6) { $("ipv6Risk").textContent = "Public IPv6 is reachable. Without knowing the VPN's expected IPv6 exit, leak status cannot be verified."; setBadge("ipv6Badge", "CANNOT VERIFY", "unknown"); }
-  else { $("ipv6Risk").textContent = "No public IPv6 was observed by the IPv6-only endpoint. This reduces the visible signal but does not prove IPv6 is disabled everywhere."; setBadge("ipv6Badge", "NOT OBSERVED", "neutral"); }
+  const { publicRtc, differentPublicRtc } = getRtcAssessment(data);
+  if (data.webrtc.unsupported) {
+    $("webrtcIps").textContent = "WebRTC is not supported by this browser.";
+    setBadge("webrtcBadge", "CANNOT VERIFY", "unknown");
+  } else if (!data.webrtc.ips.length) {
+    $("webrtcIps").textContent = "No numeric ICE candidate IPs visible (they may be hidden by mDNS).";
+    setBadge("webrtcBadge", "NONE VISIBLE", "neutral");
+  } else if (differentPublicRtc.length) {
+    $("webrtcIps").textContent = `${data.webrtc.ips.join(" · ")} — additional public-looking address observed; not enough evidence to call this a leak.`;
+    setBadge("webrtcBadge", "REVIEW", "unknown");
+  } else {
+    $("webrtcIps").textContent = data.webrtc.ips.join(" · ");
+    setBadge("webrtcBadge", publicRtc.length ? "OBSERVED" : "LOCAL ONLY", "");
+  }
+  if (data.ipv6) {
+    $("ipv6Risk").textContent = "Public IPv6 is reachable. Without knowing the VPN's expected IPv6 exit, leak status cannot be verified.";
+    setBadge("ipv6Badge", "CANNOT VERIFY", "unknown");
+  } else {
+    $("ipv6Risk").textContent = "No public IPv6 was observed by the IPv6-only endpoint. This reduces the visible signal but does not prove IPv6 is disabled everywhere.";
+    setBadge("ipv6Badge", "NOT OBSERVED", "neutral");
+  }
   const verdict = calculateStatus(data); data.verdict = verdict.status;
   $("overallStatus").textContent = verdict.status; $("statusReason").textContent = verdict.reason; $("statusDot").className = `status-dot ${verdict.css}`;
 }
