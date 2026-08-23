@@ -12,6 +12,12 @@ python3 -m http.server 8080
 
 Open <http://localhost:8080>. Do not open `index.html` directly because browser CORS and location behavior can differ for `file://` pages.
 
+## Install as an app
+
+VPN Checker is an installable Progressive Web App (PWA) with dedicated 192×192 and 512×512 icons. In a supported browser, use **Install app** or **Add to Home Screen**.
+
+The interface, styles, scripts, manifest, and icons are cached as an offline app shell. Live VPN diagnostics still require an internet connection because public IP and IP geolocation are obtained from external services. An offline shell must not be interpreted as an offline VPN test.
+
 ## APIs
 
 No secret API key or backend is required.
